@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sura Charades</title>
     
     <!-- Tailwind CSS -->
@@ -39,6 +39,7 @@
             color: #1e293b;
             background-image: radial-gradient(#bae6fd 2px, transparent 2px);
             background-size: 32px 32px;
+            overflow-x: hidden; /* Prevent horizontal scroll */
         }
         .font-title { font-family: 'Bangers', cursive; letter-spacing: 2px; }
         .comic-shadow { box-shadow: 4px 4px 0px 0px #000000; border: 3px solid #000000; }
@@ -49,12 +50,21 @@
         .card-flip.flipped .card-inner { transform: rotateY(180deg); }
         .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; flex-direction: column; border-radius: 1rem; }
         .card-back { transform: rotateY(180deg); }
-        @keyframes float { 0% { transform: translateY(0px) rotate(-5deg); } 50% { transform: translateY(-15px) rotate(5deg); } 100% { transform: translateY(0px) rotate(-5deg); } }
+        
+        @keyframes float { 
+            0% { transform: translateY(0px) rotate(-5deg); } 
+            50% { transform: translateY(-10px) rotate(5deg); } 
+            100% { transform: translateY(0px) rotate(-5deg); } 
+        }
         .animate-float { animation: float 4s ease-in-out infinite; }
         .animate-float-delay { animation: float 4s ease-in-out infinite; animation-delay: 2s; }
-        ::-webkit-scrollbar { width: 8px; }
+        
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #000; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #000; border-radius: 3px; }
+        
+        /* Mobile text stroke fix */
+        .text-stroke { -webkit-text-stroke: 1.5px black; }
     </style>
 </head>
 <body>
@@ -77,6 +87,7 @@
         const Eye = (props) => (<IconBase {...props}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconBase>);
         const EyeOff = (props) => (<IconBase {...props}><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7c.44 0 .87-.03 1.28-.09"/><line x1="2" y1="2" x2="22" y2="22"/></IconBase>);
         const Vote = (props) => (<IconBase {...props}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></IconBase>);
+        const UserPlus = (props) => (<IconBase {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></IconBase>);
         const CheckCircle2 = (props) => (<IconBase {...props}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></IconBase>);
         const ArrowLeft = (props) => (<IconBase {...props}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></IconBase>);
         const Skull = (props) => (<IconBase {...props}><path d="m12.5 17-.5-1-.5 1h1z"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8.5 20.5A2 2 0 0 1 6.5 19v-2a6 6 0 1 1 11 0v2a2 2 0 0 1-2 2h-7z"/></IconBase>);
@@ -312,14 +323,12 @@
 
                 if (maxVotes === 0) { alert("No votes! Continuing..."); updateGameStatus('playing', roomData.players.map(p => ({...p, vote: null}))); return; }
 
-                // Imposter Caught -> Game Over
                 if (candidates.includes(roomData.imposterId)) {
                     if(useMockBackend) setRoomData(prev => ({...prev, status: 'ended'}));
                     else await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { status: 'ended' });
                     return;
                 }
 
-                // Eliminate innocent
                 let updatedPlayers = roomData.players.map(p => {
                     if (candidates.length === 1 && p.uid === candidates[0]) return { ...p, isEliminated: true, vote: null };
                     return { ...p, vote: null };
@@ -330,11 +339,9 @@
                 // CHECK FOR 2 PLAYERS LEFT CONDITION
                 const aliveCount = updatedPlayers.filter(p => !p.isEliminated).length;
                 if (aliveCount <= 2) {
-                     // Game Over (Imposter Win)
                      if(useMockBackend) setRoomData(prev => ({...prev, status: 'ended', players: updatedPlayers}));
                      else await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { status: 'ended', players: updatedPlayers });
                 } else {
-                     // Continue
                      updateGameStatus('playing', updatedPlayers);
                 }
             };
@@ -379,20 +386,34 @@
                     {isDemo && view === 'landing' && <div className="bg-orange-100 text-orange-800 p-2 text-center text-xs font-bold font-sans">OFFLINE DEMO MODE</div>}
 
                     {view === 'landing' && (
-                         <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden pb-20">
-                            <div className="flex w-full max-w-4xl justify-between items-center absolute pointer-events-none z-0 opacity-20 lg:opacity-100 lg:relative lg:mb-[-40px]">
-                                <div className="flex flex-col items-center animate-float"><span className="font-title text-3xl text-green-500 -rotate-12 mb-2">REAL</span><img src="sura100.png" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/150x150/86efac/000000?text=REAL"; }} className="w-32 h-32 object-contain drop-shadow-xl"/></div>
-                                <div className="flex flex-col items-center animate-float-delay"><span className="font-title text-3xl text-red-500 rotate-12 mb-2">IMPOSTER</span><img src="sura80.png" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/150x150/fca5a5/000000?text=IMPOSTER"; }} className="w-32 h-32 object-contain drop-shadow-xl"/></div>
+                         <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-y-auto pb-20 safe-area-bottom">
+                            {/* Images: Flexible for Mobile, Absolute for Desktop */}
+                            <div className="w-full max-w-md flex justify-between items-center mb-4 lg:absolute lg:max-w-5xl lg:mb-0 lg:top-1/2 lg:-translate-y-1/2 lg:z-0 lg:pointer-events-none">
+                                <div className="flex flex-col items-center animate-float transform scale-75 md:scale-90 lg:scale-100">
+                                    <span className="font-title text-2xl lg:text-3xl text-green-500 -rotate-12 mb-2" style={{textShadow: '2px 2px 0 #000'}}>REAL</span>
+                                    <img src="sura100.png" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/150x150/86efac/000000?text=REAL"; }} className="w-24 h-24 lg:w-40 lg:h-40 object-contain drop-shadow-xl"/>
+                                </div>
+                                <div className="flex flex-col items-center animate-float-delay transform scale-75 md:scale-90 lg:scale-100">
+                                    <span className="font-title text-2xl lg:text-3xl text-red-500 rotate-12 mb-2" style={{textShadow: '2px 2px 0 #000'}}>IMPOSTER</span>
+                                    <img src="sura80.png" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/150x150/fca5a5/000000?text=IMPOSTER"; }} className="w-24 h-24 lg:w-40 lg:h-40 object-contain drop-shadow-xl"/>
+                                </div>
                             </div>
-                            <div className="w-full max-w-md bg-white p-8 rounded-2xl z-10 comic-card transform transition-all">
-                                <div className="text-center space-y-2 mb-8"><h1 className="font-title text-5xl md:text-6xl text-yellow-400 tracking-wider stroke-black text-stroke"><span style={{WebkitTextStroke: '2px black', textShadow: '4px 4px 0 #000'}}>SURA CHARADES</span></h1><p className="text-slate-500 font-bold text-lg">Who is faking it?</p></div>
-                                <div className="space-y-5">
-                                    <div><label className="block text-lg font-title text-slate-800 mb-1">YOUR NAME</label><input type="text" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-black bg-slate-50 font-bold text-lg shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] outline-none" placeholder="Enter nickname..."/></div>
+
+                            <div className="w-full max-w-md bg-white p-6 md:p-8 rounded-2xl z-10 comic-card transform transition-all shadow-xl">
+                                <div className="text-center space-y-2 mb-6">
+                                    <h1 className="font-title text-4xl md:text-6xl text-yellow-400 tracking-wider stroke-black text-stroke"><span style={{WebkitTextStroke: '2px black', textShadow: '4px 4px 0 #000'}}>SURA CHARADES</span></h1>
+                                    <p className="text-slate-500 font-bold text-base md:text-lg">Who is faking it?</p>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-base font-title text-slate-800 mb-1">YOUR NAME</label>
+                                        <input type="text" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-black bg-slate-50 font-bold text-lg shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] outline-none" placeholder="Enter nickname..."/>
+                                    </div>
                                     <div className="pt-4 border-t-2 border-dashed border-slate-300">
                                         <button onClick={createRoom} className="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-title text-xl py-3 px-4 rounded-xl flex justify-center gap-2 mb-4 comic-shadow active:translate-y-1 active:shadow-none"><Crown className="w-6 h-6" /> {isDemo ? 'HOST DEMO' : 'HOST GAME'}</button>
-                                        <div className="flex gap-3">
-                                            <input type="text" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} disabled={isDemo} className="flex-1 px-4 py-3 rounded-xl border-2 border-black text-center font-black text-xl bg-slate-50 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] outline-none" placeholder={isDemo ? "OFFLINE" : "CODE"} maxLength={4}/>
-                                            <button onClick={joinRoom} disabled={isDemo} className="flex-1 bg-sky-400 hover:bg-sky-300 text-black font-title text-xl py-3 px-4 rounded-xl flex justify-center gap-2 comic-shadow active:translate-y-1 active:shadow-none"><LogOut className="w-6 h-6 rotate-180" /> JOIN</button>
+                                        <div className="flex gap-2 flex-col sm:flex-row">
+                                            <input type="text" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} disabled={isDemo} className="w-full sm:flex-1 px-4 py-3 rounded-xl border-2 border-black text-center font-black text-xl bg-slate-50 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] outline-none uppercase tracking-widest" placeholder={isDemo ? "OFFLINE" : "CODE"} maxLength={4}/>
+                                            <button onClick={joinRoom} disabled={isDemo} className="w-full sm:flex-1 bg-sky-400 hover:bg-sky-300 text-black font-title text-xl py-3 px-4 rounded-xl flex justify-center gap-2 comic-shadow active:translate-y-1 active:shadow-none"><LogOut className="w-6 h-6 rotate-180" /> JOIN</button>
                                         </div>
                                     </div>
                                 </div>
@@ -404,19 +425,19 @@
                     {view === 'lobby' && (
                         <div className="min-h-screen p-4 flex flex-col items-center">
                             <div className="w-full max-w-md space-y-6">
-                                <div className="flex justify-between items-center">
-                                    <button onClick={leaveRoom} className="bg-white border-2 border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-bold text-sm hover:bg-slate-50 flex items-center gap-2 shadow-sm"><ArrowLeft className="w-4 h-4" /> LEAVE</button>
-                                    <div className="bg-yellow-400 border-2 border-black text-black px-4 py-1.5 rounded-full font-title tracking-wide text-lg shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform -rotate-2">{playerName}</div>
+                                <div className="flex justify-between items-center gap-2">
+                                    <button onClick={leaveRoom} className="bg-white border-2 border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-bold text-xs md:text-sm hover:bg-slate-50 flex items-center gap-1 shadow-sm shrink-0"><ArrowLeft className="w-4 h-4" /> LEAVE</button>
+                                    <div className="bg-yellow-400 border-2 border-black text-black px-3 py-1.5 rounded-full font-title tracking-wide text-base md:text-lg shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform -rotate-2 truncate max-w-[150px] md:max-w-xs">{playerName}</div>
                                 </div>
-                                <div className="bg-white p-6 rounded-2xl comic-card text-center relative overflow-hidden"><div className="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div><p className="text-slate-500 font-bold uppercase tracking-wider">Room Code</p><h2 className="font-title text-6xl text-indigo-600 tracking-widest my-2 drop-shadow-md">{activeRoomId}</h2><p className="text-slate-400 font-medium text-sm">{isDemo ? "Demo Mode" : "Waiting for players..."}</p></div>
-                                <div className="bg-white p-6 rounded-2xl comic-card"><h3 className="text-xl font-title text-slate-800 mb-4 flex items-center gap-2 border-b-2 border-slate-100 pb-2"><Users className="w-6 h-6 text-indigo-500" /> PLAYERS ({playersList.length})</h3><div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll">{playersList.map(p => (<div key={p.uid} className="flex items-center justify-between p-3 bg-slate-50 border-2 border-slate-200 rounded-xl"><span className="font-bold text-lg text-slate-700">{p.name} {p.uid === user.uid && '(You)'}</span>{p.isHost && <Crown className="w-5 h-5 text-yellow-500 fill-current" />}</div>))}</div></div>
+                                <div className="bg-white p-6 rounded-2xl comic-card text-center relative overflow-hidden"><div className="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div><p className="text-slate-500 font-bold uppercase tracking-wider">Room Code</p><h2 className="font-title text-5xl md:text-6xl text-indigo-600 tracking-widest my-2 drop-shadow-md">{activeRoomId}</h2><p className="text-slate-400 font-medium text-sm">{isDemo ? "Demo Mode" : "Waiting for players..."}</p></div>
+                                <div className="bg-white p-6 rounded-2xl comic-card"><h3 className="text-lg md:text-xl font-title text-slate-800 mb-4 flex items-center gap-2 border-b-2 border-slate-100 pb-2"><Users className="w-6 h-6 text-indigo-500" /> PLAYERS ({playersList.length})</h3><div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll">{playersList.map(p => (<div key={p.uid} className="flex items-center justify-between p-3 bg-slate-50 border-2 border-slate-200 rounded-xl"><span className="font-bold text-base md:text-lg text-slate-700">{p.name} {p.uid === user.uid && '(You)'}</span>{p.isHost && <Crown className="w-5 h-5 text-yellow-500 fill-current" />}</div>))}</div></div>
                                 
                                 {isHost ? (
                                     <div className="space-y-3">
                                         <div className="bg-white p-4 rounded-xl border-2 border-slate-200">
                                             <p className="text-sm font-bold text-slate-500 mb-2 uppercase">Word Source</p>
                                             <div className="flex gap-2">
-                                                <button onClick={() => setGameMode('auto')} className={`flex-1 py-2 rounded-lg font-bold text-sm border-2 ${gameMode === 'auto' ? 'bg-indigo-100 border-indigo-500 text-indigo-700' : 'bg-white border-slate-200 text-slate-500'}`}><Globe className="w-4 h-4 inline mr-1"/> Auto (Random)</button>
+                                                <button onClick={() => setGameMode('auto')} className={`flex-1 py-2 rounded-lg font-bold text-sm border-2 ${gameMode === 'auto' ? 'bg-indigo-100 border-indigo-500 text-indigo-700' : 'bg-white border-slate-200 text-slate-500'}`}><Globe className="w-4 h-4 inline mr-1"/> Auto</button>
                                                 <button onClick={() => setGameMode('custom')} className={`flex-1 py-2 rounded-lg font-bold text-sm border-2 ${gameMode === 'custom' ? 'bg-indigo-100 border-indigo-500 text-indigo-700' : 'bg-white border-slate-200 text-slate-500'}`}><PenTool className="w-4 h-4 inline mr-1"/> Custom</button>
                                             </div>
                                             {gameMode === 'custom' && (
@@ -439,43 +460,34 @@
                     {view === 'game' && (
                         <div className="min-h-screen p-4 pb-24">
                             <div className="max-w-md mx-auto space-y-6 mt-4">
-                                <div className="flex justify-between items-center mb-4"><button onClick={leaveRoom} className="bg-white border-2 border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-bold text-sm hover:bg-slate-50 flex items-center gap-2 shadow-sm"><ArrowLeft className="w-4 h-4" /> LEAVE</button><div className="bg-yellow-400 border-2 border-black text-black px-4 py-1.5 rounded-full font-title tracking-wide text-lg shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform -rotate-2">{playerName}</div></div>
+                                <div className="flex justify-between items-center mb-4 gap-2">
+                                    <button onClick={leaveRoom} className="bg-white border-2 border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-bold text-xs md:text-sm hover:bg-slate-50 flex items-center gap-1 shadow-sm shrink-0"><ArrowLeft className="w-4 h-4" /> LEAVE</button>
+                                    <div className="bg-yellow-400 border-2 border-black text-black px-3 py-1.5 rounded-full font-title tracking-wide text-base md:text-lg shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform -rotate-2 truncate max-w-[150px] md:max-w-xs">{playerName}</div>
+                                </div>
                                 <div className="flex justify-between items-center bg-white p-4 rounded-xl comic-card">
-                                    <div className="flex items-center gap-2"><div className="bg-indigo-100 p-2 rounded-lg border-2 border-indigo-200"><Users className="w-5 h-5 text-indigo-600" /></div><span className="font-title text-xl text-slate-700">{playersList.filter(p=>!p.isEliminated).length} Alive</span></div>
-                                    <div className={`px-4 py-1 rounded-full text-sm font-title tracking-wide border-2 ${roomData.status === 'ended' ? 'bg-red-100 border-red-400 text-red-600' : roomData.status === 'voting' ? 'bg-yellow-100 border-yellow-400 text-yellow-700' : 'bg-green-100 border-green-400 text-green-700'}`}>{roomData.status === 'ended' ? "GAME OVER" : roomData.status === 'voting' ? "VOTING TIME" : "PLAYING"}</div>
+                                    <div className="flex items-center gap-2"><div className="bg-indigo-100 p-2 rounded-lg border-2 border-indigo-200"><Users className="w-5 h-5 text-indigo-600" /></div><span className="font-title text-lg md:text-xl text-slate-700">{playersList.filter(p=>!p.isEliminated).length} Alive</span></div>
+                                    <div className={`px-4 py-1 rounded-full text-xs md:text-sm font-title tracking-wide border-2 ${roomData.status === 'ended' ? 'bg-red-100 border-red-400 text-red-600' : roomData.status === 'voting' ? 'bg-yellow-100 border-yellow-400 text-yellow-700' : 'bg-green-100 border-green-400 text-green-700'}`}>{roomData.status === 'ended' ? "GAME OVER" : roomData.status === 'voting' ? "VOTING TIME" : "PLAYING"}</div>
                                 </div>
 
                                 {roomData.status !== 'ended' ? (
                                     myData.isEliminated ? (
-                                        <div className="bg-gray-200 p-8 rounded-2xl comic-card text-center border-4 border-gray-400">
-                                            <img src="sura85.png" className="w-32 h-32 mx-auto mb-4 object-contain" alt="Eliminated" />
-                                            <h2 className="font-title text-4xl text-gray-600">ELIMINATED</h2>
-                                            <p className="text-gray-500 font-bold mt-2">You are now a spectator</p>
-                                        </div>
+                                        <div className="bg-gray-200 p-8 rounded-2xl comic-card text-center border-4 border-gray-400"><img src="sura85.png" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/150x150/9ca3af/ffffff?text=DEAD"; }} className="w-24 h-24 md:w-32 md:h-32 mx-auto mb-4 object-contain" alt="Eliminated" /><h2 className="font-title text-3xl md:text-4xl text-gray-600">ELIMINATED</h2><p className="text-gray-500 font-bold mt-2">You are now a spectator</p></div>
                                     ) : (
-                                        <div className="relative w-full h-72 cursor-pointer group" onClick={() => setRevealWord(!revealWord)}>
+                                        <div className="relative w-full h-64 md:h-72 cursor-pointer group" onClick={() => setRevealWord(!revealWord)}>
                                             <div className={`card-flip w-full h-full ${revealWord ? 'flipped' : ''}`}>
                                                 <div className="card-inner w-full h-full comic-card rounded-2xl bg-white">
                                                     <div className="card-front bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-indigo-600 text-white rounded-xl border-4 border-indigo-800"><Eye className="w-16 h-16 mb-4 text-yellow-300 animate-bounce" /><h3 className="font-title text-4xl text-yellow-300 drop-shadow-md">TAP TO REVEAL</h3><p className="font-bold text-indigo-200 mt-2 bg-indigo-800 px-3 py-1 rounded-full">Secret info inside!</p></div>
-                                                    <div className="card-back bg-white rounded-xl"><div className="text-center w-full px-4"><p className="text-slate-400 font-bold uppercase tracking-widest mb-2 text-sm">The Category is</p><p className="font-title text-3xl text-indigo-600 mb-8 border-b-2 border-dashed border-indigo-100 pb-4 mx-8">{roomData.category}</p><p className="text-slate-400 font-bold uppercase tracking-widest mb-2 text-sm">Your Secret Word</p><h2 className="font-title text-5xl text-slate-800 drop-shadow-sm">{myWord}</h2><div className="mt-8 flex items-center justify-center gap-2 text-slate-400 font-bold text-sm bg-slate-100 py-2 rounded-full mx-10"><EyeOff className="w-4 h-4" /> Tap again to hide</div></div></div>
+                                                    <div className="card-back bg-white rounded-xl"><div className="text-center w-full px-4"><p className="text-slate-400 font-bold uppercase tracking-widest mb-2 text-sm">The Category is</p><p className="font-title text-2xl md:text-3xl text-indigo-600 mb-8 border-b-2 border-dashed border-indigo-100 pb-4 mx-8">{roomData.category}</p><p className="text-slate-400 font-bold uppercase tracking-widest mb-2 text-sm">Your Secret Word</p><h2 className="font-title text-4xl md:text-5xl text-slate-800 drop-shadow-sm">{myWord}</h2><div className="mt-8 flex items-center justify-center gap-2 text-slate-400 font-bold text-sm bg-slate-100 py-2 rounded-full mx-10"><EyeOff className="w-4 h-4" /> Tap again to hide</div></div></div>
                                                 </div>
                                             </div>
                                         </div>
                                     )
                                 ) : (
                                     <div className="bg-white p-8 rounded-2xl comic-card text-center space-y-6">
-                                        <div>
-                                            <p className="text-slate-400 font-title text-xl tracking-wider">THE IMPOSTER WAS</p>
-                                            <div className="mt-4 flex flex-col items-center">
-                                                <div className="w-32 h-32 flex items-center justify-center mb-3">
-                                                    <img src="sura80.png" className="w-full h-full object-contain animate-bounce" alt="Imposter" />
-                                                </div>
-                                                <h2 className="font-title text-4xl text-slate-800">{playersList.find(p => p.uid === roomData.imposterId)?.name || 'Unknown'}</h2>
-                                            </div>
-                                        </div>
+                                        <div><p className="text-slate-400 font-title text-xl tracking-wider">THE IMPOSTER WAS</p><div className="mt-4 flex flex-col items-center"><div className="w-24 h-24 md:w-32 md:h-32 flex items-center justify-center mb-3"><img src="sura80.png" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/150x150/ef4444/ffffff?text=IMPOSTER"; }} className="w-full h-full object-contain animate-bounce" alt="Imposter" /></div><h2 className="font-title text-3xl md:text-4xl text-slate-800">{playersList.find(p => p.uid === roomData.imposterId)?.name || 'Unknown'}</h2></div></div>
                                         <div className="grid grid-cols-2 gap-4 pt-6 border-t-2 border-dashed border-slate-200">
-                                            <div className="bg-blue-50 p-3 rounded-xl border-2 border-blue-200"><p className="text-xs font-bold text-blue-400 mb-1 uppercase">Common Word</p><p className="font-title text-xl text-blue-700">{roomData.commonWord}</p></div>
-                                            <div className="bg-red-50 p-3 rounded-xl border-2 border-red-200"><p className="text-xs font-bold text-red-400 mb-1 uppercase">Imposter Word</p><p className="font-title text-xl text-red-700">{roomData.imposterWord}</p></div>
+                                            <div className="bg-blue-50 p-3 rounded-xl border-2 border-blue-200"><p className="text-xs font-bold text-blue-400 mb-1 uppercase">Common Word</p><p className="font-title text-lg md:text-xl text-blue-700">{roomData.commonWord}</p></div>
+                                            <div className="bg-red-50 p-3 rounded-xl border-2 border-red-200"><p className="text-xs font-bold text-red-400 mb-1 uppercase">Imposter Word</p><p className="font-title text-lg md:text-xl text-red-700">{roomData.imposterWord}</p></div>
                                         </div>
                                     </div>
                                 )}
@@ -489,7 +501,7 @@
                                 )}
 
                                 {isHost && (
-                                    <div className="fixed bottom-0 left-0 w-full bg-white border-t-2 border-slate-200 p-4 shadow-xl z-20">
+                                    <div className="fixed bottom-0 left-0 w-full bg-white border-t-2 border-slate-200 p-4 shadow-xl z-20 safe-area-bottom">
                                         <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
                                             {roomData.status !== 'ended' ? (
                                                 <>{roomData.status === 'voting' ? (<button onClick={handleVoteCompletion} className="bg-yellow-400 hover:bg-yellow-300 text-black py-3 px-4 rounded-xl font-title text-xl transition flex items-center justify-center gap-2 comic-shadow active:translate-y-1 active:shadow-none"><Vote className="w-5 h-5" /> TALLY VOTES</button>) : (<button onClick={toggleVoting} className="bg-indigo-500 hover:bg-indigo-400 text-white py-3 px-4 rounded-xl font-title text-xl transition flex items-center justify-center gap-2 comic-shadow active:translate-y-1 active:shadow-none"><Vote className="w-5 h-5" /> START VOTING</button>)}<button onClick={endGame} className="bg-red-500 hover:bg-red-400 text-white py-3 px-4 rounded-xl font-title text-xl transition flex items-center justify-center gap-2 comic-shadow active:translate-y-1 active:shadow-none"><ShieldAlert className="w-5 h-5" /> END GAME</button></>
